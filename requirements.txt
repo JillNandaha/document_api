@@ -6,3 +6,4 @@ sentence-transformers
 pypdf
 groq
 python-dotenv
+python-docx
