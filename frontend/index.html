@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Interdoc — Intelligent Document Assistant</title>
+    <style>
+      :root {
+        --bg: #090a19;
+        --panel: rgba(16, 20, 38, 0.96);
+        --panel-2: rgba(22, 26, 47, 0.98);
+        --border: rgba(255, 255, 255, 0.1);
+        --text: #f5f7ff;
+        --muted: #aab4d2;
+        --accent: #9a7bff;
+        --accent-2: #ff6cd8;
+        --danger: #ff7b99;
+        --shadow: 0 24px 60px rgba(0, 0, 0, 0.32);
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, "Segoe UI", Roboto, sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(circle at top left, rgba(154, 123, 255, 0.22), transparent 24%),
+          radial-gradient(circle at 80% 10%, rgba(255, 108, 216, 0.18), transparent 20%),
+          radial-gradient(circle at bottom, rgba(255, 155, 94, 0.12), transparent 22%),
+          var(--bg);
+        min-height: 100vh;
+      }
+
+      button, input, textarea { font: inherit; }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: 330px 1fr;
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        border-right: 1px solid var(--border);
+        background: rgba(5, 9, 21, 0.9);
+        backdrop-filter: blur(18px);
+        padding: 24px 18px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        border-radius: 18px;
+        background: linear-gradient(135deg, rgba(108, 124, 255, 0.24), rgba(45, 212, 191, 0.13));
+        border: 1px solid var(--border);
+      }
+
+      .brand-mark {
+        width: 44px;
+        height: 44px;
+        border-radius: 14px;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        display: grid;
+        place-items: center;
+        font-weight: 800;
+        letter-spacing: 0.06em;
+        box-shadow: 0 10px 24px rgba(108, 124, 255, 0.25);
+      }
+
+      .brand h1 { margin: 0; font-size: 1rem; }
+      .brand p { margin: 2px 0 0; color: var(--muted); font-size: 0.82rem; }
+
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        border-radius: 22px;
+        box-shadow: var(--shadow);
+      }
+
+      .upload-card {
+        position: relative;
+        overflow: hidden;
+        padding: 20px;
+        isolation: isolate;
+        background: linear-gradient(180deg, rgba(22, 26, 48, 0.95), rgba(10, 12, 28, 0.98));
+      }
+
+      .upload-card::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        background: radial-gradient(circle at top left, rgba(154, 123, 255, 0.14), transparent 24%),
+                    radial-gradient(circle at 80% 15%, rgba(255, 108, 216, 0.1), transparent 18%),
+                    radial-gradient(circle at 20% 80%, rgba(255, 155, 94, 0.08), transparent 20%);
+        opacity: 0.9;
+        filter: blur(1px);
+        z-index: -1;
+      }
+
+      .upload-card::after {
+        content: "";
+        position: absolute;
+        inset: 8px;
+        border-radius: 24px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.05), transparent 65%);
+        pointer-events: none;
+        z-index: 0;
+      }
+
+      .upload-card h2 { margin: 0 0 6px; font-size: 0.97rem; }
+      .upload-card p { margin: 0 0 14px; color: var(--muted); font-size: 0.9rem; line-height: 1.4; }
+
+      .dropzone {
+        border: 1.2px solid rgba(154, 123, 255, 0.28);
+        border-radius: 20px;
+        padding: 20px;
+        text-align: center;
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.03);
+        transition: 200ms ease;
+        cursor: pointer;
+        box-shadow: inset 0 0 0 1px rgba(154, 123, 255, 0.08);
+      }
+
+      .dropzone.dragover {
+        border-color: rgba(255, 108, 216, 0.65);
+        transform: translateY(-2px);
+        background: rgba(255, 108, 216, 0.08);
+        box-shadow: 0 0 0 1px rgba(255, 108, 216, 0.15);
+      }
+
+      .dropzone strong {
+        color: var(--text);
+        display: block;
+        margin-bottom: 4px;
+        font-size: 0.95rem;
+      }
+
+      .hidden-input { display: none; }
+
+      .upload-feed {
+        margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .upload-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 13px;
+        background: rgba(255, 255, 255, 0.045);
+        border: 1px solid rgba(255,255,255,0.06);
+      }
+
+      .upload-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--accent-2);
+        box-shadow: 0 0 0 0 rgba(255, 108, 216, 0.35);
+        animation: pulse 1.2s infinite;
+      }
+
+      .upload-dot.pending { background: #8ea0ff; animation: none; }
+      .upload-dot.error { background: var(--danger); animation: none; }
+
+      .upload-meta strong { display: block; font-size: 0.9rem; }
+      .upload-meta span { color: var(--muted); font-size: 0.78rem; }
+
+      .documents-list {
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        overflow: auto;
+      }
+
+      .documents-list h3 { margin: 4px 0 2px; font-size: 0.95rem; }
+
+      .doc-item {
+        padding: 12px;
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.05);
+      }
+
+      .doc-item strong { display: block; margin-bottom: 4px; }
+      .doc-item span { color: var(--muted); font-size: 0.84rem; }
+
+      .main-panel {
+        display: flex;
+        flex-direction: column;
+        padding: 20px;
+        gap: 18px;
+      }
+
+      .chat-header {
+        padding: 18px 20px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: linear-gradient(135deg, rgba(16, 23, 42, 0.96), rgba(12, 17, 34, 0.94));
+      }
+
+      .chat-header h2 { margin: 0 0 4px; font-size: 1.05rem; }
+      .chat-header p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+      .status-pill {
+        padding: 7px 10px;
+        border-radius: 999px;
+        background: rgba(45, 212, 191, 0.12);
+        color: #8fe9dd;
+        font-size: 0.8rem;
+        border: 1px solid rgba(45, 212, 191, 0.3);
+      }
+
+      .chat-window {
+        flex: 1;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow: auto;
+        min-height: 0;
+        background: linear-gradient(180deg, rgba(16, 21, 38, 0.95), rgba(10, 15, 29, 0.96));
+      }
+
+      .empty-state {
+        display: grid;
+        place-items: center;
+        height: 100%;
+        color: var(--muted);
+        text-align: center;
+        padding: 24px;
+      }
+
+      .message-row { display: flex; }
+      .message-row.user { justify-content: flex-end; }
+
+      .bubble {
+        max-width: min(78%, 720px);
+        padding: 12px 14px;
+        border-radius: 18px;
+        line-height: 1.5;
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .bubble.user {
+        background: linear-gradient(135deg, var(--accent), #8b93ff);
+        border-bottom-right-radius: 6px;
+      }
+
+      .bubble.assistant {
+        background: var(--panel-2);
+        border-bottom-left-radius: 6px;
+      }
+
+      .citation-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .citation-chip {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: rgba(108, 124, 255, 0.16);
+        color: #cfd6ff;
+        font-size: 0.8rem;
+        border: 1px solid rgba(108, 124, 255, 0.25);
+      }
+
+      .composer {
+        padding: 20px 18px 18px;
+        background: rgba(13, 18, 35, 0.92);
+      }
+
+      .composer-box {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 14px;
+        align-items: stretch;
+        padding: 16px;
+        border-radius: 28px;
+        background: linear-gradient(180deg, rgba(22, 26, 48, 0.97), rgba(12, 15, 29, 0.98));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+      }
+
+      .composer-input {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .composer textarea {
+        width: 100%;
+        min-height: 72px;
+        max-height: 180px;
+        resize: none;
+        border-radius: 22px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--text);
+        padding: 16px 18px;
+        outline: none;
+        box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.18);
+      }
+
+      .composer textarea:focus {
+        border-color: rgba(154, 123, 255, 0.72);
+        box-shadow: 0 0 0 4px rgba(154, 123, 255, 0.08);
+      }
+
+      .composer-hint {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
+      .composer-actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .composer-chip {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+
+      .send-btn {
+        border: none;
+        width: 56px;
+        min-height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, var(--accent), var(--accent-2));
+        color: white;
+        cursor: pointer;
+        font-weight: 700;
+        font-size: 1rem;
+        display: grid;
+        place-items: center;
+        box-shadow: 0 16px 28px rgba(154, 123, 255, 0.24);
+      }
+
+      .send-btn:disabled { opacity: 0.65; cursor: wait; }
+
+      .toast {
+        position: fixed;
+        right: 20px;
+        bottom: 20px;
+        background: rgba(10, 15, 30, 0.95);
+        border: 1px solid var(--border);
+        color: var(--text);
+        padding: 12px 14px;
+        border-radius: 12px;
+        box-shadow: var(--shadow);
+        opacity: 0;
+        transform: translateY(8px);
+        pointer-events: none;
+        transition: 220ms ease;
+      }
+
+      .toast.show { opacity: 1; transform: translateY(0); }
+
+      @keyframes pulse {
+        0% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.4); }
+        70% { box-shadow: 0 0 0 10px rgba(45, 212, 191, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0); }
+      }
+
+      @media (max-width: 920px) {
+        .app-shell { grid-template-columns: 1fr; }
+        .sidebar { border-right: 0; border-bottom: 1px solid var(--border); }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <div class="brand-mark">I</div>
+          <div>
+            <h1>Interdoc</h1>
+            <p>Grounded answers, instant citations.</p>
+          </div>
+        </div>
+
+        <div class="card upload-card">
+          <h2>Upload documents</h2>
+          <p>Drop files here to make them searchable and ready for chat.</p>
+          <label class="dropzone" id="dropzone">
+            <input class="hidden-input" id="fileInput" type="file" multiple />
+            <strong>Drag & drop or click to browse</strong>
+            <span>PDF, TXT, DOCX, and more</span>
+          </label>
+          <div class="upload-feed" id="uploadFeed"></div>
+        </div>
+
+        <div class="card documents-list">
+          <h3>Uploaded documents</h3>
+          <div id="documentList">No documents uploaded yet.</div>
+        </div>
+      </aside>
+
+      <main class="main-panel">
+        <div class="card chat-header">
+          <div>
+            <h2>Ask questions about your documents</h2>
+            <p>Interdoc retrieves grounded context and shows the source chunk for each answer.</p>
+          </div>
+          <div class="status-pill" id="statusPill">Ready</div>
+        </div>
+
+        <section class="card chat-window" id="chatWindow">
+          <div class="empty-state">
+            <div>
+              <h3>Upload a document to begin</h3>
+              <p>Your conversations will appear here with source citations beneath each answer.</p>
+            </div>
+          </div>
+        </section>
+
+        <div class="card composer">
+          <div class="composer-box">
+            <div class="composer-input">
+              <textarea id="questionInput" placeholder="Ask anything about the uploaded content..."></textarea>
+              <div class="composer-hint">
+                <span>Ask a question or refine the model prompt.</span>
+                <div class="composer-actions">
+                  <span class="composer-chip">A</span>
+                  <span class="composer-chip">⚙</span>
+                  <span class="composer-chip">📎</span>
+                </div>
+              </div>
+            </div>
+            <button class="send-btn" id="sendBtn">⟶</button>
+          </div>
+        </div>
+      </main>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+      const API_BASE = 'http://127.0.0.1:8000';
+      const state = {
+        documents: [],
+        messages: [],
+        uploads: []
+      };
+
+      const chatWindow = document.getElementById('chatWindow');
+      const documentList = document.getElementById('documentList');
+      const uploadFeed = document.getElementById('uploadFeed');
+      const questionInput = document.getElementById('questionInput');
+      const sendBtn = document.getElementById('sendBtn');
+      const statusPill = document.getElementById('statusPill');
+      const fileInput = document.getElementById('fileInput');
+      const dropzone = document.getElementById('dropzone');
+      const toast = document.getElementById('toast');
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add('show');
+        clearTimeout(showToast.timeout);
+        showToast.timeout = setTimeout(() => toast.classList.remove('show'), 2600);
+      }
+
+      function setBusy(isBusy) {
+        sendBtn.disabled = isBusy;
+        questionInput.disabled = isBusy;
+        statusPill.textContent = isBusy ? 'Working…' : 'Ready';
+      }
+
+      function renderUploads() {
+        if (!state.uploads.length) {
+          uploadFeed.innerHTML = '';
+          return;
+        }
+
+        uploadFeed.innerHTML = state.uploads
+          .map((upload) => `
+            <div class="upload-item">
+              <div class="upload-dot ${upload.status === 'Uploading…' ? 'pending' : upload.status.startsWith('Upload failed') ? 'error' : ''}"></div>
+              <div class="upload-meta">
+                <strong>${escapeHtml(upload.name)}</strong>
+                <span>${escapeHtml(upload.status)}</span>
+              </div>
+            </div>
+          `)
+          .join('');
+      }
+
+      function renderDocuments() {
+        if (!state.documents.length) {
+          documentList.innerHTML = 'No documents uploaded yet.';
+          return;
+        }
+
+        documentList.innerHTML = state.documents
+          .map((doc) => `
+            <div class="doc-item">
+              <strong>${doc.name}</strong>
+              <span>${doc.chunks} chunks indexed</span>
+            </div>
+          `)
+          .join('');
+      }
+
+      function renderMessages() {
+        if (!state.messages.length) {
+          chatWindow.innerHTML = `
+            <div class="empty-state">
+              <div>
+                <h3>Upload a document to begin</h3>
+                <p>Your conversations will appear here with source citations beneath each answer.</p>
+              </div>
+            </div>
+          `;
+          return;
+        }
+
+        chatWindow.innerHTML = state.messages
+          .map((message) => {
+            if (message.role === 'user') {
+              return `
+                <div class="message-row user">
+                  <div class="bubble user">${escapeHtml(message.content)}</div>
+                </div>
+              `;
+            }
+
+            return `
+              <div class="message-row">
+                <div class="bubble assistant">
+                  <div>${formatAnswer(message.content)}</div>
+                  ${message.sources && message.sources.length ? `
+                    <div class="citation-row">
+                      ${message.sources.map((source) => `
+                        <span class="citation-chip">${escapeHtml(source.source)} · chunk ${source.chunk_index}</span>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+                </div>
+              </div>
+            `;
+          })
+          .join('');
+      }
+
+      function formatAnswer(text) {
+        return escapeHtml(text).replace(/\n/g, '<br />');
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      async function uploadFiles(files) {
+        if (!files.length) return;
+        statusPill.textContent = 'Uploading…';
+
+        for (const file of files) {
+          const uploadId = `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+          state.uploads.unshift({ id: uploadId, name: file.name, status: 'Uploading…' });
+          renderUploads();
+
+          try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch(`${API_BASE}/upload`, {
+              method: 'POST',
+              body: formData
+            });
+
+            if (!response.ok) {
+              throw new Error(`Upload failed for ${file.name}`);
+            }
+
+            const data = await response.json();
+            const uploadedName = data.filename || file.name;
+            const chunks = data.chunks_created || 0;
+            state.documents.push({ name: uploadedName, chunks });
+            state.uploads = state.uploads.map((upload) =>
+              upload.id === uploadId ? { ...upload, status: `Uploaded • ${chunks} chunks` } : upload
+            );
+            showToast(`${uploadedName} uploaded`);
+          } catch (error) {
+            console.error(error);
+            state.uploads = state.uploads.map((upload) =>
+              upload.id === uploadId ? { ...upload, status: 'Upload failed' } : upload
+            );
+            showToast(error.message || 'Upload failed');
+          }
+
+          renderUploads();
+          renderDocuments();
+          fileInput.value = '';
+        }
+
+        statusPill.textContent = 'Ready';
+      }
+
+      async function askQuestion() {
+        const question = questionInput.value.trim();
+        if (!question) return;
+
+        if (!state.documents.length) {
+          showToast('Upload at least one document before asking questions.');
+          return;
+        }
+
+        state.messages.push({ role: 'user', content: question });
+        renderMessages();
+        questionInput.value = '';
+        setBusy(true);
+
+        try {
+          const response = await fetch(`${API_BASE}/query`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question })
+          });
+
+          if (!response.ok) {
+            throw new Error('Could not reach the query endpoint.');
+          }
+
+          const data = await response.json();
+          state.messages.push({
+            role: 'assistant',
+            content: data.answer || 'No answer returned.',
+            sources: data.sources || []
+          });
+          renderMessages();
+          showToast('Answer generated');
+        } catch (error) {
+          console.error(error);
+          state.messages.push({
+            role: 'assistant',
+            content: 'I could not generate a grounded answer right now. Please verify the API server is running.',
+            sources: []
+          });
+          renderMessages();
+          showToast(error.message || 'Query failed');
+        } finally {
+          setBusy(false);
+        }
+      }
+
+      dropzone.addEventListener('dragover', (event) => {
+        event.preventDefault();
+        dropzone.classList.add('dragover');
+      });
+
+      dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('dragover');
+      });
+
+      dropzone.addEventListener('drop', (event) => {
+        event.preventDefault();
+        dropzone.classList.remove('dragover');
+        uploadFiles(Array.from(event.dataTransfer.files));
+      });
+
+      fileInput.addEventListener('change', (event) => {
+        uploadFiles(Array.from(event.target.files || []));
+      });
+
+      sendBtn.addEventListener('click', askQuestion);
+      questionInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && !event.shiftKey) {
+          event.preventDefault();
+          askQuestion();
+        }
+      });
+
+      renderUploads();
+      renderDocuments();
+      renderMessages();
+    </script>
+  </body>
+</html>
